@@ -1,31 +1,31 @@
 <?php return array (
-  '@hotwired/stimulus' => 
+  '@hotwired/stimulus' =>
   array (
     'version' => '3.2.2',
-    'dependencies' => 
+    'dependencies' =>
     array (
     ),
-    'extraFiles' => 
+    'extraFiles' =>
     array (
     ),
   ),
-  '@hotwired/turbo' => 
+  '@hotwired/turbo' =>
   array (
     'version' => '8.0.12',
-    'dependencies' => 
+    'dependencies' =>
     array (
     ),
-    'extraFiles' => 
+    'extraFiles' =>
     array (
     ),
   ),
-  '@picocss/pico/css/pico.min.css' => 
+  '@picocss/pico/css/pico.min.css' =>
   array (
     'version' => '2.0.6',
-    'dependencies' => 
+    'dependencies' =>
     array (
     ),
-    'extraFiles' => 
+    'extraFiles' =>
     array (
     ),
   ),
