@@ -1,3 +1,15 @@
+# Executables (local)
+DOCKER = docker
+DOCKER_COMP = docker compose
+
+# Docker containers
+PHP_CONT = $(DOCKER_COMP) exec php
+
+# Executables
+PHP      = $(PHP_CONT) php
+COMPOSER = $(PHP_CONT) composer
+SYMFONY  = $(PHP) bin/console
+
 SHELL = sh
 .DEFAULT_GOAL = help
 
@@ -151,3 +163,8 @@ deploy: ## Simple manual deploy on a VPS (this is to update the demo site https:
 
 le-renew: ## Renew Let's Encrypt HTTPS certificates
 	@certbot --apache -d $(DOMAIN) -d www.$(DOMAIN)
+
+## —— Utils 🔌 ————————————————————————————————————————————————————————————————————————
+trust-tls: ## Trust the TLS certificates
+	@$(DOCKER) cp $(shell $(DOCKER_COMP) ps -q php):/data/caddy/pki/authorities/local/root.crt /tmp/root.crt && sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain /tmp/root.crt
+
