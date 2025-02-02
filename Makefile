@@ -27,30 +27,30 @@ help: ## Outputs this help screen
 
 
 ## —— Symfony binary 💻 ————————————————————————————————————————————————————————
-start: ## Serve the application with the Symfony binary
-	@symfony serve --daemon
+start: ## Start all services using Docker
+	@$(DOCKER_COMP) up -d
 
-stop: ## Stop the web server
-	@symfony server:stop
+stop: ## Stop all running Docker containers
+	@$(DOCKER_COMP) down
 
 
 ## —— Symfony 🎶  ——————————————————————————————————————————————————————————————
 go-prod: ## Switch to the production environment
-	@cp .env.local.dist .env.local
+	@$(DOCKER_COMP) exec php cp .env.local.dist .env.local
 	# uncomment this line to optimize the auto-loading of classes in the prod env
-	#@composer dump-autoload --no-dev --classmap-authoritative
-	@bin/console asset-map:compile
+	#@$(COMPOSER) dump-autoload --no-dev --classmap-authoritative
+	@$(SYMFONY) asset-map:compile
 
 go-dev: ## Switch to the development environment
-	@rm -f .env.local
-	@rm -rf ./public/assets/*
-	#@composer dump-autoload
+	@$(DOCKER_COMP) exec php rm -f .env.local
+	@$(DOCKER_COMP) exec php rm -rf ./public/assets/*
+	#@$(COMPOSER) dump-autoload
 
 warmup: ## Warmup the dev cache for the static analysis
-	@bin/console c:w --env=dev
+	@$(SYMFONY) c:w --env=dev
 
 purge: ## Purge all Symfony cache and logs
-	@rm -rf ./var/cache/* ./var/logs/* ./var/coverage/*
+	@$(DOCKER_COMP) exec php rm -rf ./var/cache/* ./var/logs/* ./var/coverage/*
 
 
 ## —— Tests ✅ —————————————————————————————————————————————————————————————————
@@ -58,7 +58,7 @@ test: ## Run tests with optional suite, filter and options (to debug use "make t
 	@$(eval testsuite ?= 'api,e2e,functional,integration,unit') # Run all suites by default, to run a specific suite see other "test-*" targets, eg: "make test-unit"
 	@$(eval filter ?= '.')                                      # Use this parameter to spot a given test,                                       eg: "make test filter=testSlugify"
 	@$(eval options ?= --stop-on-failure)                       # Use this use other options,                                                    eg: "make test options=--testdox"
-	@vendor/bin/phpunit --testsuite=$(testsuite) --filter=$(filter) $(options)
+	@$(PHP) vendor/bin/phpunit --testsuite=$(testsuite) --filter=$(filter) $(options)
 
 test-api: ## Run API tests only
 test-api: testsuite=api
@@ -82,8 +82,9 @@ test-unit: test
 
 coverage: ## Generate the HTML PHPUnit code coverage report (stored in var/coverage)
 coverage: purge
-	@XDEBUG_MODE=coverage php -d xdebug.enable=1 -d memory_limit=-1 vendor/bin/phpunit --coverage-html=var/coverage --coverage-clover=var/coverage/clover.xml
-	@php bin/coverage-checker.php var/coverage/clover.xml $(COVERAGE_THRESHOLD)
+	@$(DOCKER_COMP) exec php XDEBUG_MODE=coverage php -d xdebug.enable=1 -d memory_limit=-1 vendor/bin/phpunit --coverage-html=var/coverage --coverage-clover=var/coverage/clover.xml
+	@$(PHP) bin/coverage-checker.php var/coverage/clover.xml $(COVERAGE_THRESHOLD)
+
 
 cov-report: var/coverage/index.html ## Open the PHPUnit code coverage report (var/coverage/index.html)
 	@open var/coverage/index.html
@@ -91,27 +92,27 @@ cov-report: var/coverage/index.html ## Open the PHPUnit code coverage report (va
 
 ## —— Coding standards/lints ✨ ————————————————————————————————————————————————
 stan: var/cache/dev/App_KernelDevDebugContainer.xml ## Run the PHPStan static analysis
-	@vendor/bin/phpstan analyse -c phpstan.neon --memory-limit 1G -vv
+	@$(PHP) vendor/bin/phpstan analyse -c phpstan.neon --memory-limit 1G -vv
 
 # PHPStan needs the dev/debug cache
 var/cache/dev/App_KernelDevDebugContainer.xml:
-	APP_DEBUG=1 APP_ENV=dev bin/console cache:warmup
+	@$(DOCKER_COMP) exec php APP_DEBUG=1 APP_ENV=dev $(SYMFONY) cache:warmup
 
 fix-php: ## Fix PHP files with php-cs-fixer (ignore PHP version warning)
-	@PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix $(PHP_CS_FIXER_ARGS)
+	@$(DOCKER_COMP) exec php PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix $(PHP_CS_FIXER_ARGS)
 
 lint-php: ## Lint PHP files with php-cs-fixer (report only)
 lint-php: PHP_CS_FIXER_ARGS=--dry-run
 lint-php: fix-php
 
 lint-container: ## Lint the Symfony DI container
-	@bin/console lint:container
+	@$(SYMFONY) lint:container
 
 lint-twig: ## Lint Twig files
-	@bin/console lint:twig templates/
+	@$(SYMFONY) lint:twig templates/
 
 lint-yaml: ## Lint YAML files
-	@bin/console lint:yaml --parse-tags config/
+	@$(SYMFONY) lint:yaml --parse-tags config/
 
 fix: ## Run all fixers
 fix: fix-php
@@ -130,39 +131,39 @@ version-make:
 	@$(MAKE) --version
 version-php:
 	@echo   '\n—— PHP ——————————————————————————————————————————————————————————'
-	@php -v
+	@$(PHP) -v
 version-composer:
 	@echo '\n—— Composer ———————————————————————————————————————————————————————'
-	@composer --version
+	@$(COMPOSER) --version
 version-symfony:
 	@echo '\n—— Symfony ————————————————————————————————————————————————————————'
-	@bin/console --version
+	@$(SYMFONY) --version
 version-phpunit:
 	@echo '\n—— PHPUnit ————————————————————————————————————————————————————————'
-	@vendor/bin/phpunit --version
+	@$(PHP) vendor/bin/phpunit --version
 version-phpstan:
 	@echo '—— PHPStan ——————————————————————————————————————————————————————————'
-	@vendor/bin/phpstan --version
+	@$(PHP) vendor/bin/phpstan --version
 version-php-cs-fixer:
 	@echo '\n—— php-cs-fixer ———————————————————————————————————————————————————'
-	@PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer --version
+	@$(DOCKER_COMP) exec php PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer --version
 	@echo
 
 check-requirements: ## Checks requirements for running Symfony
-	@vendor/bin/requirements-checker
+	@$(PHP) vendor/bin/requirements-checker
 
 
 ## —— Deploy & Prod 🚀 —————————————————————————————————————————————————————————
 deploy: ## Simple manual deploy on a VPS (this is to update the demo site https://microsymfony.ovh/)
-	@git pull
-	@composer install -n
-	@chown -R www-data: ./var/*
-	@cp .env.local.dist .env.local
-	@composer dump-env prod -n
-	@bin/console asset-map:compile
+	@$(DOCKER_COMP) exec php git pull
+	@$(COMPOSER) install -n
+	@$(DOCKER_COMP) exec php chown -R www-data: ./var/*
+	@$(DOCKER_COMP) exec php cp .env.local.dist .env.local
+	@$(COMPOSER) dump-env prod -n
+	@$(SYMFONY) asset-map:compile
 
 le-renew: ## Renew Let's Encrypt HTTPS certificates
-	@certbot --apache -d $(DOMAIN) -d www.$(DOMAIN)
+	@$(DOCKER) run --rm -v /etc/letsencrypt:/etc/letsencrypt certbot/certbot renew --apache -d $(DOMAIN) -d www.$(DOMAIN)
 
 ## —— Utils 🔌 ————————————————————————————————————————————————————————————————————————
 trust-tls: ## Trust the TLS certificates
